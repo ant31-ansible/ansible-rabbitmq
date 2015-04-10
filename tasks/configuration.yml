@@ -1,0 +1,40 @@
+---
+- name: RabbitMQ | Create vhost
+  rabbitmq_vhost: name={{rabbitmq_vhost}} node="rabbit@{{inventory_hostname}}"
+  ignore_errors: yes
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Create Admin user on Slash
+  rabbitmq_user: user={{rabbitmq_vhost_admin_user.name}} password={{rabbitmq_vhost_admin_user.password}} vhost=/ write_priv=".*" read_priv=".*" configure_priv=".*" node="rabbit@{{inventory_hostname}}"  tags="administrator"
+  ignore_errors: yes
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Create Admin user on Vhost
+  rabbitmq_user: user={{rabbitmq_vhost_admin_user.name}} password={{rabbitmq_vhost_admin_user.password}} vhost={{rabbitmq_vhost}} write_priv=".*" read_priv=".*" configure_priv=".*" node="rabbit@{{inventory_hostname}}"  tags="administrator"
+  ignore_errors: yes
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Create user
+  rabbitmq_user: user={{rabbitmq_vhost_user.name}} password={{rabbitmq_vhost_user.password}} vhost={{rabbitmq_vhost}} write_priv=".*" read_priv=".*" configure_priv=".*" node="rabbit@{{inventory_hostname}}"
+  ignore_errors: yes
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Add policy
+  rabbitmq_policy:  name={{item.name}} pattern={{item.pattern}} priority={{item.priority}}  vhost={{item.vhost}} node="rabbit@{{inventory_hostname}}"
+  ignore_errors: yes
+  args:
+    tags: "{{item.tags}}"
+  with_items: rabbitmq_policies
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Add exchanges
+  command: rabbitmqadmin -u {{rabbitmq_vhost_admin_user.name}} -p {{rabbitmq_vhost_admin_user.password}} -V {{item.vhost}} declare exchange name={{item.name}} type={{item.type}}
+  with_items: rabbitmq_exchanges
+  changed_when: False
+  tags:
+    - rabbitmq

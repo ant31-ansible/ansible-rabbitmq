@@ -1,0 +1,21 @@
+---
+- name: stop rabbitmq-node
+  command: rabbitmqctl stop_app
+  ignore_errors: yes
+
+- name: restart rabbitmq
+  service: name=rabbitmq-server state=restarted
+
+- name: reset rabbitmq-node
+  command: rabbitmqctl reset
+
+- name: start rabbitmq-node
+  command: rabbitmqctl start_app
+
+- name: stop rabbitmq
+  service: name=rabbitmq-server state=stopped
+  ignore_errors: yes
+
+- name: kill rabbitmq
+  command: killall -u {{rabbitmq_user}} -v -r epmd -r beam.smp
+  ignore_errors: yes

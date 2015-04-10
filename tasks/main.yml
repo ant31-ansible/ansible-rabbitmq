@@ -1,0 +1,21 @@
+---
+- name: RabbitMQ | Start server
+  service: name=rabbitmq-server state=started
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Wait erlang to start
+  pause: seconds=10
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Start app
+  command: rabbitmqctl start_app
+  changed_when: False
+  tags:
+    - rabbitmq
+
+- include: install.yml
+- include: cluster.yml
+- include: manage.yml
+- include: configuration.yml

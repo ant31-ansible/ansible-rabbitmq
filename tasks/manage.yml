@@ -1,0 +1,39 @@
+---
+- name: "RabbitMQ | Reset node, it will erase all data: ARE YOU SURE?"
+  when: "{{action is defined and action == 'reset'}}"
+  pause: seconds=60
+  tags:
+    - rabbitmq
+    - rabbitmq_reset
+
+- name: RabbitMQ | Reset node
+  when: "{{action is defined and action == 'reset'}}"
+  service: name=rabbitmq-server state=started
+  notify:
+    - stop rabbitmq-node
+    - reset rabbitnq-node
+    - start rabbitmq-node
+  register: join_cluster
+  tags:
+    - rabbitmq
+    - rabbitmq_reset
+
+- name: RabbitMQ | Restart
+  command: service rabbitmq-server status
+  when: "{{action is defined and action == 'restart'}}"
+  register: join_cluster
+  tags:
+    - rabbitmq_restart
+    - rabbitmq_reclustering
+    - rabbitmq
+
+- name: RabbitMQ | Stop rabbitmq service
+  service: name=rabbitmq-server state=stopped
+  when: "{{action is defined and action == 'stop'}}"
+  notify:
+    - stop rabbitmq-cluster
+    - stop rabbitmq
+    - kill rabbitmq
+  tags:
+    - stop
+    - rabbitmq

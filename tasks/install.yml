@@ -1,0 +1,120 @@
+---
+- name: RabbitMQ Common | Add host
+  lineinfile: dest=/etc/hosts regexp="{{ansible_ssh_host}}\s+{{inventory_hostname}}" line="{{ansible_ssh_host}} {{inventory_hostname}}" backup=yes owner=root group=root mode=0644
+  tags:
+    - rabbitmq
+
+# Create conf before package since it start automaticaly
+- name: RabbitMQ Common | Create the conf directory
+  file: path=/etc/rabbitmq owner={{rabbitmq_user}} state=directory
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common | Create the data directory for the metadata
+  file: path={{ rabbitmq_datadir_prefix }} owner={{rabbitmq_user}} group={{rabbitmq_user}} state=directory
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common | Share cookie across cluster
+  template: src=erlang_cookie.j2 dest={{ rabbitmq_datadir_prefix }}/.erlang.cookie owner={{rabbitmq_user}} group={{rabbitmq_user}} mode=0600
+  notify:
+    - restart rabbitmq
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ |  Create the rabbitmq environement file
+  template: src=rabbitmq-env.conf.j2 dest=/etc/rabbitmq/rabbitmq-env.conf mode=0644
+  notify:
+    - stop rabbitmq-node
+    - restart rabbitmq
+    - start rabbitmq-node
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ |  Create the rabbitmq configuration file
+  template: src=rabbitmq.conf.j2 dest=/etc/rabbitmq/rabbitmq.config mode=0644
+  notify:
+    - stop rabbitmq-node
+    - restart rabbitmq
+    - start rabbitmq-node
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common | Install the rabbitmq packages
+  apt: pkg="rabbitmq-server={{rabbitmq_version}}" state=present
+  register: new_install
+  with_items: packages
+  ignore_errors: yes
+  tags:
+    - rabbitmq
+
+- name: stop rabbitmq
+  service: name=rabbitmq-server state=stopped
+  when: new_install|failed
+  ignore_errors: yes
+  tags:
+    - rabbitmq
+
+- name: kill rabbitmq
+  command: killall -u {{rabbitmq_user}} -v -r epmd -r beam.smp
+  ignore_errors: yes
+  when: new_install|failed
+  tags:
+    - rabbitmq
+
+# This Playbook runs all the common plays in the deployment
+- name: RabbitMQ Common |  copy rabbitmq package
+  copy: src='rabbitmq-server_{{rabbitmq_version}}_all.deb' dest=/var/cache/apt/archives group=root owner=root
+  when: new_install|failed
+  register: new_deb
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common |  Install rabbitmq
+  command: dpkg -i /tmp/rabbitmq-server_3.3.1-1_all.deb
+  when: new_install|failed
+  notify:
+    - restart rabbitmq
+  tags:
+    - rabbitmq
+  ignore_errors: yes
+
+- name: RabbitMQ Common |  Solve dep
+  command: apt-get install -f -y
+  when: new_install|failed
+  tags:
+    - rabbitmq
+  ignore_errors: yes
+
+- name: RabbitMQ Common | kill rabbitmq
+  when: "{{ new_install.changed == True }}"
+  service: name=rabbitmq-server state=stopped
+  ignore_errors: true
+  tags:
+    - rabbitmq
+
+
+- name: RabbitMQ Common | Rabbitmq admin
+  copy: src=rabbitmqadmin dest=/usr/bin/rabbitmqadmin owner=root group=root mode=0755
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common | Create the run directory
+  file: path={{ rabbitmq_run_prefix }} owner={{rabbitmq_user}} group={{rabbitmq_user}} state=directory
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common | Create the log directory
+  file: path={{ rabbitmq_log_prefix }} owner={{rabbitmq_user}} group={{rabbitmq_user}} state=directory
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ Common | Enable plugins
+  rabbitmq_plugin: names="rabbitmq_management,rabbitmq_management_visualiser,rabbitmq_federation,rabbitmq_federation_management" state=enabled
+  register: plugins
+  notify:
+    - restart rabbitmq
+  tags:
+    - rabbitmq
+
+- meta: flush_handlers

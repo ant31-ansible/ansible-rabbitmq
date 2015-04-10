@@ -1,0 +1,41 @@
+---
+- name: RabbitMQ | Check cluster status
+  command: rabbitmqctl cluster_status
+  with_items: groups["rabbitmq-servers"]
+  register: join_cluster
+  failed_when: "'rabbit@{{item}}' not in join_cluster.stdout"
+  changed_when: False
+  tags:
+    - rabbitmq
+  ignore_errors: yes
+
+- name: RabbitMQ | Check node discovery
+  command: rabbitmqctl  status -n rabbit@{{hostvars[item].inventory_hostname}}
+  with_items: groups["rabbitmq-servers"]
+  register: discovery_cluster
+  changed_when: False
+  tags:
+    - rabbitmq
+  ignore_errors: yes
+
+- name: RabbitMQ | Join cluster
+  shell: rabbitmqctl stop_app && rabbitmqctl join_cluster rabbit@{{hostvars[item].inventory_hostname}} && rabbitmqctl start_app
+  with_items: groups['rabbitmq-servers']
+  when: "{{item != inventory_hostname and join_cluster|failed and inventory_hostname == groups['rabbitmq-servers'][0] and groups['rabbitmq-servers']|length > 1 }}"
+  tags:
+    - rabbitmq
+
+- name: RabbitMQ | Check cluster mode
+  shell: rabbitmqctl cluster_status | grep -E "{{cluster_mode}}.*rabbit@{{inventory_hostname}}"
+  when: "{{groups['rabbitmq-servers']|length > 1}}"
+  register: change_cluster_mode
+  changed_when: False
+  tags:
+    - rabbitmq
+  ignore_errors: yes
+
+- name: RabbitMQ | Change cluster mode
+  shell: rabbitmqctl stop_app && rabbitmqctl change_cluster_node_type {{cluster_mode}} && rabbitmqctl start_app
+  when: change_cluster_mode|failed
+  tags:
+    - rabbitmq

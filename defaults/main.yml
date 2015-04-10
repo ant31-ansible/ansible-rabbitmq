@@ -1,0 +1,29 @@
+---
+# The directory prefix where the database files would be stored
+rabbitmq_user: "rabbitmq"
+rabbitmq_datadir_prefix: /var/lib/rabbitmq
+rabbitmq_log_prefix: /var/log/rabbitmq
+rabbitmq_run_prefix: /var/run/rabbitmq
+erlang_cookie: sGGCEfrtI+djJHO
+
+# The interface where the rabbitmq process should listen on.
+# Defaults to the first interface. Change this to:
+#
+#  iface: eth1
+#
+# ...to override.
+#
+iface: '{{ ansible_default_ipv4.interface }}'
+
+# The global variable file rabbitmq installation
+
+# The port in which rabbitmq server
+rabbitmq_port_start: 15001
+# The port for rabbitmq server
+rabbitmq_port_end: 15011
+rabbitmq_commands:
+  - {command: "set_policy mirroring_motherbrain \"^mb_\" '{\"ha-mode\":\"all\", \"ha-sync-mode\":\"automatic\"}' --priority 1"}
+
+rabbitmq_version: 3.5.1-1
+ferm_rules:
+  "rabbitMQ": {rule: "proto tcp dport (4369 5672 15001:15011 15672 35197) ACCEPT;", chain: "INPUT", comment: "rabbitMQ"}

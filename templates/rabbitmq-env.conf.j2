@@ -1,0 +1,2 @@
+export SERVER_ERL_ARGS="$SERVER_ERL_ARGS -kernel inet_dist_listen_min {{rabbitmq_port_start}} -kernel inet_dist_listen_max {{rabbitmq_port_end}}"
+NODENAME=rabbit@{{inventory_hostname}}

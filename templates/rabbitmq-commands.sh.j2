@@ -1,0 +1,10 @@
+---
+cluster_mode: "{{cluster_mode}}"
+cluster_nodes:
+{% for host in groups["rabbitmq-servers"] %}
+ - rabbit@{{host}}:{{hostvars[host].cluster_mode}}
+{% endfor %}
+policies:
+{% for cmd in rabbitmq_commands %}
+ - {{cmd}}
+{% endfor %}
